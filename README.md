@@ -47,7 +47,7 @@ words the rules are written in. That is all this tool does.
 ## Install
 
 ```bash
-git clone https://github.com/Orumcael/n8n-agent-eval
+git clone https://github.com/lucas-orum/n8n-agent-eval
 cd n8n-agent-eval
 pip install -r requirements.txt
 ```
