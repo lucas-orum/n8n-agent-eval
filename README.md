@@ -141,14 +141,6 @@ python -m agent_eval.cli cases/ --mock --fail-under 9.0
 python -m pytest
 ```
 
-## How AI was used here
-
-I drafted parts of this with Claude and reviewed every line before committing.
-The scoring rules and the criteria vocabulary are mine, because they came out of
-real failures I had to diagnose; the generated first drafts got the mechanics
-right and the judgement wrong, which is roughly the split I expect. Nothing here
-is committed that I cannot explain.
-
 ## License
 
 MIT
