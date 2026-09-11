@@ -1,0 +1,114 @@
+# Example suite for a fictional ISP support agent at "Acme Internet".
+#
+# The rules below are the kind that live in an agent's specification and get
+# quietly broken once the prompt grows: ask only the approved question, never
+# push a customer who says they cannot follow steps, and escalate immediately
+# when the outage is regional rather than individual.
+#
+# Every case carries mock_replies so the suite runs with --mock and no n8n
+# instance. Point --url at a real webhook to evaluate the real agent.
+
+cases:
+  - id: happy-path
+    description: customer already rebooted, connection is back
+    messages:
+      - "my internet is down, nothing works"
+      - "I already unplugged the router and plugged it back in"
+      - "it is working now, thanks"
+    mock_replies:
+      - "I am sorry about that. Have you already unplugged the router from the wall?"
+      - "Thanks for confirming. I am running a check on your line now, one moment."
+      - "Can you open a website or an app and tell me if it loads?"
+    criteria:
+      - id: approved-question
+        kind: contains
+        turn: 0
+        value: "unplugged the router"
+        description: opens with the one approved question for this scenario
+      - id: no-repeat
+        kind: not_contains
+        turn: 1
+        value: ["have you tried restarting", "unplug the router"]
+        description: does not ask the customer to reboot again after they said they did
+      - id: practical-confirmation
+        kind: contains
+        turn: 2
+        value: ["open a website"]
+        description: asks for a practical confirmation before closing
+      - id: one-question-per-message
+        kind: max_questions
+        value: 1
+        description: never stacks two questions into one message
+
+  - id: customer-struggling
+    description: customer says they cannot follow the steps
+    messages:
+      - "internet is out"
+      - "I do not know how to do that, I am eighty and I do not understand these things"
+    mock_replies:
+      - "I am sorry about that. Have you already unplugged the router from the wall?"
+      - "No problem at all. I am passing you to a specialist who will walk you through it."
+    criteria:
+      - id: no-insisting
+        kind: not_contains
+        turn: 1
+        value: ["unplug", "try again", "can you check"]
+        description: stops giving remote instructions once the customer declares difficulty
+      - id: escalates
+        kind: contains
+        turn: 1
+        value: "specialist"
+        description: hands off to a human on the first declaration of difficulty
+      - id: handoff-is-terminal
+        kind: ends_conversation
+        value: "specialist"
+        description: the handoff is the last thing said
+
+  - id: regional-outage
+    description: neighbours are affected too, so it is not an individual fault
+    messages:
+      - "my whole street is out, my neighbours have no internet either"
+    mock_replies:
+      - "Thanks for telling me. An outage affecting several homes goes straight to the field team. I am escalating it now and they will look at your area."
+    criteria:
+      - id: no-individual-test
+        kind: not_contains
+        value: ["unplug", "reboot", "restart", "speed test"]
+        description: never asks for individual troubleshooting during a regional outage
+      - id: no-confirmation-request
+        kind: max_questions
+        value: 0
+        description: does not ask the customer to confirm anything before escalating
+      - id: escalates-immediately
+        kind: contains
+        value: ["field team"]
+        description: routes to the field team
+      - id: single-reply
+        kind: max_replies
+        value: 1
+        description: resolves in one message, since this is a terminal condition
+
+  - id: visible-hardware-fault
+    description: red light on the modem, which outranks the reported symptom
+    messages:
+      - "internet is slow today"
+      - "there is a red light on the box"
+    mock_replies:
+      - "Sorry about the slowness. Have you already unplugged the router from the wall?"
+      - "A red light means the line itself is down, so this needs a technician. I can book a visit for tomorrow morning between 8 and 12, or the afternoon between 13 and 18. Which works?"
+    criteria:
+      - id: switches-scenario
+        kind: contains
+        turn: 1
+        value: ["technician"]
+        description: a red light switches the flow from slowness to a line fault
+      - id: no-wifi-questions
+        kind: not_contains
+        turn: 1
+        value: ["repeater", "how far", "closer to the router"]
+        description: drops the slowness questions once the hardware fault is confirmed
+      - id: offers-booking
+        kind: regex
+        turn: 1
+        value: "(morning|afternoon).*(morning|afternoon)"
+        description: offers both visit windows

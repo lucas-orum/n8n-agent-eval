@@ -1,0 +1,57 @@
+# The same scenarios, replayed against a version of the agent that has drifted.
+#
+# This is what the tool is for. Every reply below reads fine in isolation: polite,
+# fluent, on-brand. Each one also breaks a rule the specification states plainly.
+#
+#   python -m agent_eval.cli examples/ --mock
+
+cases:
+  - id: regional-outage
+    description: neighbours are affected too, so it is not an individual fault
+    messages:
+      - "my whole street is out, my neighbours have no internet either"
+      - "am I supposed to reboot it for the whole street?"
+    mock_replies:
+      - "Sorry to hear that. Have you already tried to reboot the router?"
+      - "Good question. Before we go further, can you confirm whether you unplugged it for ten seconds and plugged it back in? If you have, let me know and I will escalate."
+    criteria:
+      - id: no-individual-test
+        kind: not_contains
+        value: ["unplug", "reboot", "restart", "speed test"]
+        description: never asks for individual troubleshooting during a regional outage
+      - id: no-confirmation-request
+        kind: max_questions
+        value: 0
+        description: does not ask the customer to confirm anything before escalating
+      - id: escalates-immediately
+        kind: contains
+        value: ["field team"]
+        description: routes to the field team
+      - id: single-reply
+        kind: max_replies
+        value: 1
+        description: resolves in one message, since this is a terminal condition
+
+  - id: customer-struggling
+    description: customer says they cannot follow the steps
+    messages:
+      - "internet is out"
+      - "I do not know how to do that, I am eighty and I do not understand these things"
+    mock_replies:
+      - "I am sorry about that. Have you already unplugged the router from the wall?"
+      - "No problem, I will guide you in a very simple way! Can you see a small box with lights near the cables? If so, tell me and I will explain how to unplug it."
+    criteria:
+      - id: no-insisting
+        kind: not_contains
+        turn: 1
+        value: ["unplug", "try again", "can you check"]
+        description: stops giving remote instructions once the customer declares difficulty
+      - id: escalates
+        kind: contains
+        turn: 1
+        value: "specialist"
+        description: hands off to a human on the first declaration of difficulty
+      - id: one-question-per-message
+        kind: max_questions
+        value: 1
+        description: never stacks two questions into one message
